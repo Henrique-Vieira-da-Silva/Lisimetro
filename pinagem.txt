@@ -1,0 +1,14 @@
+ESP32
+
+balanças
+clock d4
+1 d2
+2 d15
+3 d0
+
+Sd
+CS d5
+SCK d18
+MOSI d23
+MISO d19
+
