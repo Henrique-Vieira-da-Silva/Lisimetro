@@ -1,14 +1,22 @@
 ESP32
 
 balanças
-clock d4
-1 d2
-2 d15
-3 d0
+
+clock d4 GPIO 04
+1 d2 GPIO 2
+2 d15 GPIO 15
+3 d0 GPIO 0
 
 Sd
-CS d5
-SCK d18
-MOSI d23
-MISO d19
+
+CS d5 GPIO 05
+SCK d18 GPIO 018
+MOSI d23 GPIO 23
+MISO d19 GPIO 19
+
+Relogio
+
+SDA d21 GPIO 21
+SCL d22 GPIO 22
+
 
