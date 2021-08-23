@@ -37,24 +37,68 @@
 #include "SD.h"
 #include "SPI.h"
 #include "HX711.h"
-#define DT 2       //d2
-#define DT1 15     //d15
-#define DT2 0      //d0
-#define SCK 4      //d4
-int tara = 254;    //tara
-int massa = 0.200; //massa padrão para calibramento
-HX711 balanca;     //objeto balança
-HX711 balanca1;    //objeto balança1
-HX711 balanca2;    //objeto balança2
-RTClib Clock;      //criando objeto DS3231  (hardware)
+#define DT 2         //d2
+#define DT1 15       //d15
+#define DT2 0        //d0
+#define SCK 4        //d4
+float tara = 254;    //tara
+float massa = 1.000; //massa padrão para calibramento
+HX711 balanca;       //objeto balança
+HX711 balanca1;      //objeto balança1
+HX711 balanca2;      //objeto balança2
+RTClib Clock;        //criando objeto DS3231  (hardware)
 DS3231 relogio;
 
 const char *ssid = "Lisimetro";
 const char *password = "123456789";
 WiFiServer server(80);
-void setup()
+
+class URL
 {
 
+public:
+    String url;
+    String rota;
+    URL(String url)
+    {
+        this->url = url;
+        GetRota();
+    }
+
+    String GetAtr(String atr)
+    {
+        String url = this->url;
+
+        if (url.indexOf(atr) == -1)
+            return (" ");
+        url = url.substring(url.indexOf("?" + atr + "=") + 2 + atr.length(), url.length());
+
+        if (url.lastIndexOf("?") != -1)
+        {
+            return (url.substring(0, url.indexOf("?")));
+        }
+        else
+        {
+            return (url.substring(0, url.indexOf("HTTP")));
+        }
+    }
+
+    void GetRota()
+    {
+        this->url = this->url.substring(this->url.lastIndexOf("GET /") + 5, this->url.substring(this->url.lastIndexOf("GET /"), this->url.length()).lastIndexOf("HTTP") + 4);
+        if (this->url.lastIndexOf("?") != -1)
+        {
+            this->rota = this->url.substring(0, this->url.indexOf("?"));
+        }
+        else
+        {
+            this->rota = this->url.substring(0, this->url.lastIndexOf("HTTP"));
+        }
+    }
+};
+
+void setup()
+{
 
     pinMode(DT, INPUT);
     pinMode(DT1, INPUT);
@@ -67,22 +111,22 @@ void setup()
     Serial.begin(115200);
     Wire.begin();
     Ap();
-    DateTime dia = Clock.now();
-    defineDataHora(relogio, 18, 8, 21, 4, 13, 43, 0);
 
-    Serial.print("data:  ");
-    Serial.println(dia.day(), DEC);
-    Serial.print(" / ");
-    Serial.println(dia.month(), DEC);
-    Serial.print(" / ");
-    Serial.println(dia.year(), DEC);
-    Serial.print(" / ");
-    Serial.println(dia.hour(), DEC);
-    Serial.print(" / ");
-    Serial.println(dia.minute(), DEC);
-    Serial.print(" / ");
-    Serial.println(dia.second(), DEC);
-    Serial.println("Hello  World");
+    //defineDataHora(relogio, 18, 8, 21, 4, 13, 43, 0);
+    // DateTime dia = Clock.now();
+    // Serial.print("data:  ");
+    // Serial.println(dia.day(), DEC);
+    // Serial.print(" / ");
+    // Serial.println(dia.month(), DEC);
+    // Serial.print(" / ");
+    // Serial.println(dia.year(), DEC);
+    // Serial.print(" / ");
+    // Serial.println(dia.hour(), DEC);
+    // Serial.print(" / ");
+    // Serial.println(dia.minute(), DEC);
+    // Serial.print(" / ");
+    //  Serial.println(dia.second(), DEC);
+    // Serial.println("Hello  World");
     if (!SD.begin())
     {
         Serial.println("Card Mount Failed");
@@ -136,59 +180,125 @@ void setup()
 void loop()
 {
 
-      WiFiClient client = server.available();   // listen for incoming clients
+    WiFiClient client = server.available(); // listen for incoming clients
 
-  if (client) {                             // if you get a client,
-    Serial.println("New Client.");           // print a message out the serial port
-    String currentLine = "";                // make a String to hold incoming data from the client
-    while (client.connected()) {            // loop while the client's connected
-      if (client.available()) {             // if there's bytes to read from the client,
-        char c = client.read();             // read a byte, then
-        Serial.write(c);                    // print it out the serial monitor
-        if (c == '\n') {                    // if the byte is a newline character
+    if (client)
+    {                            // if you get a client,
+        String currentLine = ""; // make a String to hold incoming data from the client
+        while (client.connected())
+        { // loop while the client's connected
+            if (client.available())
+            {                           // if there's bytes to read from the client,
+                char c = client.read(); // read a byte, then
+                Serial.print(c);
+                currentLine += c;
 
-          // if the current line is blank, you got two newline characters in a row.
-          // that's the end of the client HTTP request, so send a response:
-          if (currentLine.length() == 0) {
-            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-            // and a content-type so the client knows what's coming, then a blank line:
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-type:text/html");
-            client.println();
+                if (currentLine.length() == 0)
+                {
+                    client.println("HTTP/1.1 200 OK");
+                    client.println("Content-type:text/html");
+                    client.println();
+                    //coloque aqui a página principal
+                    client.println(); //fim do http
+                    break;
+                }
+                //currentLine.lastIndexOf("GET /H") != -1
+                //procura a rota
+                if (currentLine.lastIndexOf("HTTP") != -1)
+                {
+                    client.println("HTTP/1.1 200 OK");
+                    client.println("Content-type:text/html");
+                    client.println();
 
-            // the content of the HTTP response follows the header:
-            client.print("Click <a href=\"/H\">here</a> to turn ON the LED.<br>");
-            client.print("Click <a href=\"/L\">here</a> to turn OFF the LED.<br>");
+                    URL teste(currentLine);
+                    client.println(teste.rota);
+                    client.println("<br/>");
+                    client.println(teste.GetAtr("nome"));
+                    client.println("<br/>");
+                    client.println(teste.GetAtr("idade"));
+                    client.println("<br/>");
+                    client.println(teste.GetAtr("telefone"));
+                    if (teste.rota == "teste")
+                    {
+                        client.println("<h1>Ola</h1>");
+                        break;
+                    }
+                    else if (teste.rota == "setwifi")
+                    {
+                      bool conectado =  WfConnection(tochar(teste.GetAtr("ssid")), tochar(teste.GetAtr("senha")), converte(teste,"ip"),converte(teste,"gateway") , converte(teste,"mask"), converte(teste,"dns"));
+                      client.print(conectado);
+                    }
+                    else
+                    {
 
-            // The HTTP response ends with another blank line:
-            client.println();
-            // break out of the while loop:
-            break;
-          } else {    // if you got a newline, then clear currentLine:
-            currentLine = "";
-          }
-        } else if (c != '\r') {  // if you got anything else but a carriage return character,
-          currentLine += c;      // add it to the end of the currentLine
+                        client.println("<h1>404</h1>");
+                        break;
+                    }
+
+                    client.println(); //fim do http
+                    break;
+                }
+            }
         }
 
-      }
+        // close the connection:
+        client.stop();
+        Serial.println("Client Disconnected.");
     }
-    // close the connection:
-    client.stop();
-    Serial.println("Client Disconnected.");
-  }
     //Serial.print(medir(balanca));
     //Serial.println(" g");
 }
+
+const char *tochar(String string){
+    const char *a = string.c_str();
+    return(a);
+}
+
+
+IPAddress converte(URL teste, String atr)
+{
+   IPAddress a( teste.GetAtr(atr).substring(0, 3).toInt(),  teste.GetAtr(atr).substring(3, 6).toInt(),  teste.GetAtr(atr).substring(6, 9).toInt(),  teste.GetAtr(atr).substring(9, 12).toInt()  );  
+   return (a);
+}
+
+
 
 void Ap()
 {
     Serial.println("Configuring access point...");
     WiFi.softAP(ssid, password);
+    IPAddress Ip(192, 168, 4, 2);
+    IPAddress gatway(192, 168, 4, 1);
+    IPAddress NMask(255, 255, 255, 0);
+    WiFi.softAPConfig(Ip, gatway, NMask);
     IPAddress myIP = WiFi.softAPIP();
     Serial.print("AP IP address: ");
     Serial.println(myIP);
     server.begin();
+}
+
+bool WfConnection(const char *ss, const char *s, IPAddress Ip, IPAddress gatway, IPAddress NMask, IPAddress dns)
+{   
+
+    Serial.println(Ip);
+    Serial.println(gatway);
+    Serial.println(NMask);
+    Serial.println(dns);
+    Serial.println(ss);
+    Serial.println(s);
+    
+    WiFi.config(Ip, gatway, NMask, dns, dns);
+    WiFi.begin(ss, s);
+    int count = 0;
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(500);
+        Serial.print(".");
+        count++;
+        if (count > 25)
+            return (false);
+    }
+    return (true);
 }
 
 void defineDataHora(DS3231 dispositivo, byte day, byte month, byte year, byte dow, byte hour, byte minute, byte second)
