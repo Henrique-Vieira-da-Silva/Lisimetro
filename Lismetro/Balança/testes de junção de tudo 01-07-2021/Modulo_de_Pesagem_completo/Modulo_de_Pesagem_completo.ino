@@ -48,10 +48,47 @@ HX711 balanca1;      //objeto balança1
 HX711 balanca2;      //objeto balança2
 RTClib Clock;        //criando objeto DS3231  (hardware)
 DS3231 relogio;
+const char *ssid = "Lisimetro";     //ssdi do modo AP
+const char *password = "123456789"; //senha do modo AP
+WiFiServer server(80);              //porta do servidor
 
-const char *ssid = "Lisimetro";
-const char *password = "123456789";
-WiFiServer server(80);
+/*
+class medicao{
+/*
+
+- numero da balança byte
+- tara atual double 
+- escala/calibração double
+- data string
+- hora string
+- massa double
+- dados brutos da balança double
+- data da tara string
+- hora da tara string
+- nome do intervalo (20 caracteres) string
+- media aritimética intervalo atual double
+
+
+    public:
+        byte n;//numero da balança
+        double  tara, escala, dbrutos, media;
+        String data, hora, dataT, horaT, nome;
+
+};
+
+*/
+
+
+
+
+
+class Configs
+{
+
+public:
+    int httpPort;
+    const char *host;
+};
 
 class URL
 {
@@ -83,100 +120,46 @@ public:
         }
     }
 
-    void GetRota()
+
+
+
+void GetRota()
+{
+    this->url = this->url.substring(this->url.lastIndexOf("GET /") + 5, this->url.substring(this->url.lastIndexOf("GET /"), this->url.length()).lastIndexOf("HTTP") + 4);
+    if (this->url.lastIndexOf("?") != -1)
     {
-        this->url = this->url.substring(this->url.lastIndexOf("GET /") + 5, this->url.substring(this->url.lastIndexOf("GET /"), this->url.length()).lastIndexOf("HTTP") + 4);
-        if (this->url.lastIndexOf("?") != -1)
-        {
-            this->rota = this->url.substring(0, this->url.indexOf("?"));
-        }
-        else
-        {
-            this->rota = this->url.substring(0, this->url.lastIndexOf("HTTP"));
-        }
+        this->rota = this->url.substring(0, this->url.indexOf("?"));
     }
+    else
+    {
+        this->rota = this->url.substring(0, this->url.lastIndexOf("HTTP"));
+    }
+    this->rota.trim();
+}
+
 };
 
+Configs dadosConfig;
 void setup()
 {
-
+    Ap();
     pinMode(DT, INPUT);
     pinMode(DT1, INPUT);
     pinMode(DT2, INPUT);
     pinMode(SCK, OUTPUT);
-
-    // inicializar(&balanca,tara,DT,SCK);
-    //calibrar(&balanca,massa);
-
     Serial.begin(115200);
     Wire.begin();
-    Ap();
+    wifiAuto();
+    configAuto();
+    Serial.println("Dados da configuração: ");
+    Serial.println(dadosConfig.host);
+    Serial.println(dadosConfig.httpPort);
 
-    //defineDataHora(relogio, 18, 8, 21, 4, 13, 43, 0);
-    // DateTime dia = Clock.now();
-    // Serial.print("data:  ");
-    // Serial.println(dia.day(), DEC);
-    // Serial.print(" / ");
-    // Serial.println(dia.month(), DEC);
-    // Serial.print(" / ");
-    // Serial.println(dia.year(), DEC);
-    // Serial.print(" / ");
-    // Serial.println(dia.hour(), DEC);
-    // Serial.print(" / ");
-    // Serial.println(dia.minute(), DEC);
-    // Serial.print(" / ");
-    //  Serial.println(dia.second(), DEC);
-    // Serial.println("Hello  World");
-    if (!SD.begin())
-    {
-        Serial.println("Card Mount Failed");
-        return;
-    }
-    uint8_t cardType = SD.cardType();
-
-    if (cardType == CARD_NONE)
-    {
-        Serial.println("No SD card attached");
-        return;
-    }
-
-    Serial.print("SD Card Type: ");
-    if (cardType == CARD_MMC)
-    {
-        Serial.println("MMC");
-    }
-    else if (cardType == CARD_SD)
-    {
-        Serial.println("SDSC");
-    }
-    else if (cardType == CARD_SDHC)
-    {
-        Serial.println("SDHC");
-    }
-    else
-    {
-        Serial.println("UNKNOWN");
-    }
-
-    uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-    Serial.printf("SD Card Size: %lluMB\n", cardSize);
-
-    listDir(SD, "/", 0);
-    createDir(SD, "/mydir");
-    listDir(SD, "/", 0);
-    removeDir(SD, "/mydir");
-    listDir(SD, "/", 2);
-    writeFile(SD, "/hello.txt", "Hello ");
-    appendFile(SD, "/hello.txt", "World!\n");
-    readFile(SD, "/hello.txt");
-    deleteFile(SD, "/foo.txt");
-    renameFile(SD, "/hello.txt", "/foo.txt");
-    readFile(SD, "/foo.txt");
-    testFileIO(SD, "/test.txt");
-    Serial.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
-    Serial.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
+    Cliente(3000, "192.168.2.7", "/hvh?name=helen");
+    //mkdirs("x/b/c/d/ola");
+    // inicializar(&balanca,tara,DT,SCK);
+    //calibrar(&balanca,massa);
 }
-
 void loop()
 {
 
@@ -193,40 +176,162 @@ void loop()
                 Serial.print(c);
                 currentLine += c;
 
-                if (currentLine.length() == 0)
-                {
-                    client.println("HTTP/1.1 200 OK");
-                    client.println("Content-type:text/html");
-                    client.println();
-                    //coloque aqui a página principal
-                    client.println(); //fim do http
-                    break;
-                }
-                //currentLine.lastIndexOf("GET /H") != -1
-                //procura a rota
                 if (currentLine.lastIndexOf("HTTP") != -1)
                 {
                     client.println("HTTP/1.1 200 OK");
                     client.println("Content-type:text/html");
+                    client.println("<meta charset='UTF-8'>");
                     client.println();
 
-                    URL teste(currentLine);
-                    client.println(teste.rota);
-                    client.println("<br/>");
-                    client.println(teste.GetAtr("nome"));
-                    client.println("<br/>");
-                    client.println(teste.GetAtr("idade"));
-                    client.println("<br/>");
-                    client.println(teste.GetAtr("telefone"));
-                    if (teste.rota == "teste")
+                    URL req(currentLine);
+                    req.url.replace("&", "?");
+                    if (req.rota == "teste")
                     {
                         client.println("<h1>Ola</h1>");
                         break;
                     }
-                    else if (teste.rota == "setwifi")
+                    else if (req.rota == "setwifi")
                     {
-                      bool conectado =  WfConnection(tochar(teste.GetAtr("ssid")), tochar(teste.GetAtr("senha")), converte(teste,"ip"),converte(teste,"gateway") , converte(teste,"mask"), converte(teste,"dns"));
-                      client.print(conectado);
+                        client.println("<h2>Conectado...</h2>");
+                        if (WfConnection(tochar(req.GetAtr("ssid")), tochar(req.GetAtr("senha")), converte(req, "ip"), converte(req, "gateway"), converte(req, "mask"), converte(req, "dns")))
+                        {
+                            client.println("<h1>Conectado!</h1> <br>");
+                            if (salvaWifi(req))
+                            {
+                                client.println("<h1>Salvo!</h1>");
+                            }
+                            else
+                            {
+                                client.println("<h1>Erro ao Salvar!</h1>");
+                            }
+                            delay(500);
+                            break;
+                        }
+                        else
+                        {
+                            client.println("<h1>Erro, Verifique os dados!</h1>");
+                            client.println("<script>setTimeout(()=>{window.location.href='wifi'}, 2000);</script>");
+                            delay(500);
+                            break;
+                        }
+                    }
+                    else if (req.rota == "wifi")
+                    {
+                        client.println("<form style='text-align: center;' action='/setwifi' method='get'> ");
+                        client.println("<h1>insira os dados e envie para configurar em qual rede o Lisimetro deve se conectar!</h1><br/>");
+                        client.println("<h2>preencha todos os campos corretamente</h2><br/><br>");
+                        client.println("<input type='text' name='ssid' placeholder='SSID (nome da rede WIFI)'><br><br>");
+                        client.println("<input type='password' name='senha' placeholder='senha'><br><br>");
+                        client.println("<input type='text' name='ip' placeholder='ip(192168001050)'><br><br>");
+                        client.println("<input type='text' name='gateway' placeholder='gateway(192168001001)'><br><br>");
+                        client.println("<input type='text' name='mask' placeholder='mask(255255255000)'><br><br>");
+                        client.println("<input type='text' name='dns' placeholder='dns(008008008008)'><br><br>");
+                        client.println(" <input type='submit' value='Enviar'>");
+                        client.println("</form>");
+                        break;
+                    }
+                    else if (req.rota == "inicio")
+                    {
+                        switch (appendFile(req.GetAtr("pasta"), "Hello World"))
+                        {
+                        case -1:
+                            client.println("<h1>Cartão Falhado</h1>");
+
+                            break;
+                        case -2:
+                            client.println("<h1>cheio</h1>");
+
+                            break;
+                        case 1:
+                            client.println("<h1>já criado</h1>");
+
+                            break;
+                        case 0:
+                            client.println("<h1>sucesso</h1>");
+
+                            break;
+                        default:
+                            break;
+                        }
+                        client.println(readFile(req.GetAtr("pasta")));
+                    }
+                    else if (req.rota == "setConfig")
+                    {
+                        if (salvaConfig(req))
+                        {
+                            client.println("0");
+                        }
+                        else
+                        {
+                            client.println("-1");
+                        }
+                    }
+                    else if (req.rota == "file/list")
+                    {
+                        if (!SD.begin())
+                        {
+                            client.println("Cartão não conectado ou falha");
+                            return;
+                        }
+
+                        //listDir(SD, "/", 0);
+
+                        String dirname = "/";
+
+                        client.printf("Listing directory: %s\n", dirname);
+
+                        File root = SD.open(dirname);
+                        if (!root)
+                        {
+                            client.println(" <br/> Failed to open directory <br/> ");
+                            return;
+                        }
+                        if (!root.isDirectory())
+                        {
+                            client.println(" <br/> Not a directory <br/> ");
+                            return;
+                        }
+
+                        File file = root.openNextFile();
+                        while (file)
+                        {
+                            if (file.isDirectory())
+                            {
+                                client.print("<br/>  DIR : ");
+                                client.println(file.name());
+                            }
+                            else
+                            {
+                                client.print("<br/>   FILE: ");
+                                client.print(file.name());
+                                client.print(" | ");
+                                client.print(file.size());
+                                client.print(" B");
+                            }
+                            file = root.openNextFile();
+                        }
+                    }
+                    else if (req.url.indexOf("/file/"))
+                    {
+                        String arquivo = "/";
+                        arquivo += req.url.substring(req.url.indexOf("/file/") + 6, req.url.indexOf("HTTP"));
+                        Serial.println("\n");
+                        Serial.println(arquivo);
+
+                        if (!SD.begin())
+                        {
+                            Serial.println("Cartão não conectado ou falha");
+                            return;
+                        }
+                        File file = SD.open(arquivo);
+                        if (!file)
+                        {
+                            client.print("Arquivo não encontrado");
+                        }
+                        while (file.available())
+                        {
+                            client.print(char(file.read()));
+                        }
                     }
                     else
                     {
@@ -235,7 +340,7 @@ void loop()
                         break;
                     }
 
-                    client.println(); //fim do http
+                    client.println(req.GetAtr("pasta")); //fim do http
                     break;
                 }
             }
@@ -245,29 +350,191 @@ void loop()
         client.stop();
         Serial.println("Client Disconnected.");
     }
-    //Serial.print(medir(balanca));
-    //Serial.println(" g");
 }
 
-const char *tochar(String string){
+const char *tochar(String string)
+{
     const char *a = string.c_str();
-    return(a);
+    return (a);
 }
+bool wifiAuto()
+{
+    if (SD.begin())
+    {
+        if (SD.exists("/lisimetro/config/rede/config.txt"))
+        {
+            URL req(" ");
 
+            File file = SD.open("/lisimetro/config/rede/config.txt");
+            if (!file)
+            {
+                Serial.print("Arquivo não encontrado");
+            }
+            while (file.available())
+            {
+                req.url += char(file.read());
+            }
 
+            if (WfConnection(tochar(req.GetAtr("ssid")), tochar(req.GetAtr("senha")), converte(req, "ip"), converte(req, "gateway"), converte(req, "mask"), converte(req, "dns")))
+                return true;
+        }
+    }
+    return false;
+}
+bool configAuto()
+{
+    if (SD.begin())
+    {
+        if (SD.exists("/lisimetro/config/gerais/config.txt"))
+        {
+            URL req(" ");
+
+            File file = SD.open("/lisimetro/config/gerais/config.txt");
+            if (!file)
+            {
+                Serial.print("Arquivo não encontrado");
+            }
+            while (file.available())
+            {
+                req.url += char(file.read());
+            }
+            dadosConfig.httpPort = req.GetAtr("porta").toInt();
+            dadosConfig.host = tochar(req.GetAtr("servidor"));
+        }
+    }
+    return false;
+}
+bool salvaWifi(URL req)
+{
+
+    if (!SD.begin())
+    {
+        Serial.println("Card Mount Failed");
+        return (false);
+    }
+
+    removeFile("lisimetro/config/rede/config.txt");
+
+    if (SD.begin())
+    {
+
+        String conteudo = "GET /setwifi?ip=" + req.GetAtr("ip");
+        conteudo += "?gateway=" + req.GetAtr("gateway");
+        conteudo += "?mask=" + req.GetAtr("mask");
+        conteudo += "?dns=" + req.GetAtr("dns");
+        conteudo += "?ssid=" + req.GetAtr("ssid");
+        conteudo += "?senha=" + req.GetAtr("senha");
+        conteudo += "HTTP";
+
+        if (!mkdirs("lisimetro/config/rede"))
+            return (false);
+
+        if (!createFile("/lisimetro/config/rede/config.txt", conteudo))
+        {
+            Serial.println("certo");
+            return (true);
+        }
+        else
+        {
+            Serial.println("falhou");
+            return (false);
+        }
+    }
+    else
+    {
+        return (false);
+    }
+}
 IPAddress converte(URL teste, String atr)
 {
-   IPAddress a( teste.GetAtr(atr).substring(0, 3).toInt(),  teste.GetAtr(atr).substring(3, 6).toInt(),  teste.GetAtr(atr).substring(6, 9).toInt(),  teste.GetAtr(atr).substring(9, 12).toInt()  );  
-   return (a);
+    IPAddress a(teste.GetAtr(atr).substring(0, 3).toInt(), teste.GetAtr(atr).substring(3, 6).toInt(), teste.GetAtr(atr).substring(6, 9).toInt(), teste.GetAtr(atr).substring(9, 12).toInt());
+    return (a);
 }
+bool salvaConfig(URL req)
+{
 
+    if (!SD.begin())
+    {
+        Serial.println("Card Mount Failed");
+        return (false);
+    }
 
+    removeFile("lisimetro/config/gerais/config.txt");
+
+    if (SD.begin())
+    {
+
+        String conteudo = "GET /config?";
+        conteudo += "?servidor=" + req.GetAtr("servidor");
+        conteudo += "?porta=" + req.GetAtr("porta");
+        conteudo += "HTTP";
+
+        if (!mkdirs("lisimetro/config/gerais"))
+            return (false);
+
+        if (!createFile("/lisimetro/config/gerais/config.txt", conteudo))
+        {
+            // Serial.println("certo");
+            return (true);
+        }
+        else
+        {
+            // Serial.println("falhou");
+            return (false);
+        }
+    }
+    else
+    {
+        return (false);
+    }
+}
+bool mkdirs(String pastas)
+{
+
+    //crias varias pastas, sua sintaxe é asism: mkdirs("a/b/c/d");
+    String pasta, ultima = "";
+
+    do
+    {
+        if (pastas.lastIndexOf("/") >= 0)
+        {
+            pasta = pastas.substring(0, pastas.indexOf("/"));
+            pastas = pastas.substring(pastas.indexOf("/") + 1);
+        }
+        else
+        {
+            pasta = pastas;
+        }
+
+        if (!SD.begin())
+            return (false);
+        // Serial.println("pasta: " + pasta);
+        if (ultima == "")
+        {
+            if (!SD.exists("/" + pasta))
+            {
+                if (!SD.mkdir("/" + pasta))
+                    return (false);
+            }
+        }
+        else
+        {
+            if (!SD.exists(ultima + "/" + pasta))
+            {
+                if (!SD.mkdir(ultima + "/" + pasta))
+                    return (false);
+            }
+        }
+        ultima += "/" + pasta;
+    } while (pastas != pasta);
+    return (true);
+}
 
 void Ap()
 {
     Serial.println("Configuring access point...");
     WiFi.softAP(ssid, password);
-    IPAddress Ip(192, 168, 4, 2);
+    IPAddress Ip(192, 168, 4, 50);
     IPAddress gatway(192, 168, 4, 1);
     IPAddress NMask(255, 255, 255, 0);
     WiFi.softAPConfig(Ip, gatway, NMask);
@@ -278,7 +545,7 @@ void Ap()
 }
 
 bool WfConnection(const char *ss, const char *s, IPAddress Ip, IPAddress gatway, IPAddress NMask, IPAddress dns)
-{   
+{
 
     Serial.println(Ip);
     Serial.println(gatway);
@@ -286,7 +553,6 @@ bool WfConnection(const char *ss, const char *s, IPAddress Ip, IPAddress gatway,
     Serial.println(dns);
     Serial.println(ss);
     Serial.println(s);
-    
     WiFi.config(Ip, gatway, NMask, dns, dns);
     WiFi.begin(ss, s);
     int count = 0;
@@ -313,7 +579,6 @@ void defineDataHora(DS3231 dispositivo, byte day, byte month, byte year, byte do
     dispositivo.setMinute(minute);
     dispositivo.setSecond(second);
 }
-
 double medir(HX711 Dispositivo)
 {
     return (Dispositivo.get_units(10) * 1000);
@@ -322,7 +587,6 @@ double medirRapido(HX711 Dispositivo)
 {
     return (Dispositivo.get_units(1) * 1000);
 }
-
 void calibrar(HX711 *Dispositivo, double MassaPadrao)
 {
     Serial.println("Calibrando!");
@@ -341,7 +605,6 @@ void calibrar(HX711 *Dispositivo, double MassaPadrao)
     Serial.println("Finalizado");
     Dispositivo->set_scale(((medida / 10) / MassaPadrao));
 }
-
 void inicializarBalanca(HX711 *Dispositivo, float Tara, int Data, int Clock)
 {
     Serial.println("Inicializando! Agurdade...");
@@ -355,88 +618,91 @@ void inicializarBalanca(HX711 *Dispositivo, float Tara, int Data, int Clock)
 
 //################################## funções do cartão SD
 
-void listDir(fs::FS &fs, const char *dirname, uint8_t levels)
+int appendFile(String arquivo, String texto)
 {
-    Serial.printf("Listing directory: %s\n", dirname);
+    Serial.println("olha so: " + arquivo);
 
-    File root = fs.open(dirname);
-    if (!root)
+    if (!SD.begin())
     {
-        Serial.println("Failed to open directory");
-        return;
-    }
-    if (!root.isDirectory())
-    {
-        Serial.println("Not a directory");
-        return;
+        return -1; //cartão não disponivel
     }
 
-    File file = root.openNextFile();
-    while (file)
+    if (SD.exists(arquivo))
     {
-        if (file.isDirectory())
+        File file = SD.open(arquivo, FILE_APPEND);
+        if (file.println(texto))
         {
-            Serial.print("  DIR : ");
-            Serial.println(file.name());
-            if (levels)
-            {
-                listDir(fs, file.name(), levels - 1);
-            }
+            file.close();
+            return 0; //aquivoCriado
         }
         else
         {
-            Serial.print("  FILE: ");
-            Serial.print(file.name());
-            Serial.print("  SIZE: ");
-            Serial.println(file.size());
+            file.close();
+            return -2; //falha ao criar (memoria cheia ou caminha errado)
         }
-        file = root.openNextFile();
-    }
-}
-
-void createDir(fs::FS &fs, const char *path)
-{
-    Serial.printf("Creating Dir: %s\n", path);
-    if (fs.mkdir(path))
-    {
-        Serial.println("Dir created");
     }
     else
     {
-        Serial.println("mkdir failed");
+
+        return -2; //já criada
     }
 }
 
-void removeDir(fs::FS &fs, const char *path)
+int removeFile(const char *arquivo)
 {
-    Serial.printf("Removing Dir: %s\n", path);
-    if (fs.rmdir(path))
+    if (SD.remove(arquivo))
     {
-        Serial.println("Dir removed");
+        return (0);
     }
     else
     {
-        Serial.println("rmdir failed");
+        return (-1);
     }
 }
 
-void readFile(fs::FS &fs, const char *path)
+int createFile(const char *arquivo, String texto)
 {
-    Serial.printf("Reading file: %s\n", path);
+    File file = SD.open(arquivo, FILE_WRITE);
+    if (file.println(texto))
+    {
+        file.close();
+        return 0; //aquivoCriado
+    }
+    else
+    {
+        return -2; //falha ao criar (memoria cheia ou caminha errado)
+    }
+}
 
-    File file = fs.open(path);
+int createDir(const char *pasta)
+{
+    if (SD.mkdir(pasta))
+    {
+        return 0; //pastaCriada
+    }
+    else
+    {
+        return -2; //falha ao criar (memoria cheia ou caminha errado)
+    }
+}
+
+String readFile(String arquivo)
+{
+
+    File file = SD.open(arquivo);
     if (!file)
     {
-        Serial.println("Failed to open file for reading");
-        return;
+        return "-1";
     }
 
-    Serial.print("Read from file: ");
+    arquivo = "";
     while (file.available())
     {
-        Serial.write(file.read());
+        arquivo += char(file.read());
     }
+
     file.close();
+    return arquivo;
 }
 
 void writeFile(fs::FS &fs, const char *path, const char *message)
@@ -456,27 +722,6 @@ void writeFile(fs::FS &fs, const char *path, const char *message)
     else
     {
         Serial.println("Write failed");
-    }
-    file.close();
-}
-
-void appendFile(fs::FS &fs, const char *path, const char *message)
-{
-    Serial.printf("Appending to file: %s\n", path);
-
-    File file = fs.open(path, FILE_APPEND);
-    if (!file)
-    {
-        Serial.println("Failed to open file for appending");
-        return;
-    }
-    if (file.print(message))
-    {
-        Serial.println("Message appended");
-    }
-    else
-    {
-        Serial.println("Append failed");
     }
     file.close();
 }
@@ -557,3 +802,34 @@ void testFileIO(fs::FS &fs, const char *path)
 }
 
 //##################################
+void Cliente(const int httpPort, const char *host, String url)
+{
+    Serial.print("connecting to");
+    Serial.println(host);
+    WiFiClient client;
+    if (!client.connect(host, httpPort))
+    {
+        Serial.println("connection failed");
+        return;
+    }
+    Serial.print("Requesting URL: ");
+    Serial.println(url);
+    client.print("GET " + url + " HTTP/1.1\r\nHost: " + host + "\r\nConnection: close\r\n\r\n");
+    unsigned long timeout = millis();
+    while (client.available() == 0)
+    {
+        if (millis() - timeout > 5000)
+        {
+            Serial.println(">>> Client Timeout !");
+            client.stop();
+            return;
+        }
+    }
+    while (client.available())
+    {
+        String line = client.readStringUntil('\r');
+        Serial.print(line);
+    }
+    Serial.println();
+    Serial.println("closing connection");
+}
