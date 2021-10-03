@@ -37,6 +37,7 @@
 #include "SD.h"
 #include "SPI.h"
 #include "HX711.h"
+#include <DS3231.h>
 #define DT 2         //d2
 #define DT1 15       //d15
 #define DT2 0        //d0
@@ -51,6 +52,8 @@ DS3231 relogio;
 const char *ssid = "Lisimetro";     //ssdi do modo AP
 const char *password = "123456789"; //senha do modo AP
 WiFiServer server(80);              //porta do servidor
+
+double tara1=0, tara2=0, tara3=0;
 
 /*
 class medicao{
@@ -78,16 +81,13 @@ class medicao{
 
 */
 
-
-
-
-
 class Configs
 {
 
 public:
     int httpPort;
-    const char *host;
+    String host;
+    int tempo;
 };
 
 class URL
@@ -120,23 +120,19 @@ public:
         }
     }
 
-
-
-
-void GetRota()
-{
-    this->url = this->url.substring(this->url.lastIndexOf("GET /") + 5, this->url.substring(this->url.lastIndexOf("GET /"), this->url.length()).lastIndexOf("HTTP") + 4);
-    if (this->url.lastIndexOf("?") != -1)
+    void GetRota()
     {
-        this->rota = this->url.substring(0, this->url.indexOf("?"));
+        this->url = this->url.substring(this->url.lastIndexOf("GET /") + 5, this->url.substring(this->url.lastIndexOf("GET /"), this->url.length()).lastIndexOf("HTTP") + 4);
+        if (this->url.lastIndexOf("?") != -1)
+        {
+            this->rota = this->url.substring(0, this->url.indexOf("?"));
+        }
+        else
+        {
+            this->rota = this->url.substring(0, this->url.lastIndexOf("HTTP"));
+        }
+        this->rota.trim();
     }
-    else
-    {
-        this->rota = this->url.substring(0, this->url.lastIndexOf("HTTP"));
-    }
-    this->rota.trim();
-}
-
 };
 
 Configs dadosConfig;
@@ -151,11 +147,33 @@ void setup()
     Wire.begin();
     wifiAuto();
     configAuto();
+    balancasAuto();
     Serial.println("Dados da configuração: ");
     Serial.println(dadosConfig.host);
     Serial.println(dadosConfig.httpPort);
+    VerificaUpdates();
+    int teste3 = 3000;
+    const char *teste = "192.168.2.7";
+    
+    Serial.println("Hora: ");
+    RTClib myRTC;
 
-    Cliente(3000, "192.168.2.7", "/hvh?name=helen");
+    DateTime now = myRTC.now();
+
+    Serial.print(now.year(), DEC);
+    Serial.print('/');
+    Serial.print(now.month(), DEC);
+    Serial.print('/');
+    Serial.print(now.day(), DEC);
+    Serial.print(' ');
+    Serial.print(now.hour(), DEC);
+    Serial.print(':');
+    Serial.print(now.minute(), DEC);
+    Serial.print(':');
+    Serial.print(now.second(), DEC);
+    Serial.println();
+
+    //Cliente(teste3, teste, "/configHorario");
     //mkdirs("x/b/c/d/ola");
     // inicializar(&balanca,tara,DT,SCK);
     //calibrar(&balanca,massa);
@@ -210,13 +228,16 @@ void loop()
                         else
                         {
                             client.println("<h1>Erro, Verifique os dados!</h1>");
-                            client.println("<script>setTimeout(()=>{window.location.href='wifi'}, 2000);</script>");
                             delay(500);
+                            client.println("<script>setTimeout(()=>{window.location.href='wifi'}, 2000);</script>");
+
                             break;
                         }
                     }
                     else if (req.rota == "wifi")
                     {
+                        client.println("<html lang='pt-br'> <meta charset='UTF-8'><title>Configurações de WiFi</title>");
+                        client.println("<a href='/'>Menu</a> <br/>");
                         client.println("<form style='text-align: center;' action='/setwifi' method='get'> ");
                         client.println("<h1>insira os dados e envie para configurar em qual rede o Lisimetro deve se conectar!</h1><br/>");
                         client.println("<h2>preencha todos os campos corretamente</h2><br/><br>");
@@ -226,6 +247,33 @@ void loop()
                         client.println("<input type='text' name='gateway' placeholder='gateway(192168001001)'><br><br>");
                         client.println("<input type='text' name='mask' placeholder='mask(255255255000)'><br><br>");
                         client.println("<input type='text' name='dns' placeholder='dns(008008008008)'><br><br>");
+                        client.println(" <input type='submit' value='Enviar'>");
+                        client.println("</form>");
+                        break;
+                    }
+                    else if (req.rota == "configBalancas") //##############################
+                    {
+                        client.println("<html lang='pt-br'> <meta charset='UTF-8'><title>Configurações das Células de Carga</title>");
+                        client.println("<a href='/'>Menu</a> <br/>");
+                        client.println("<form style='text-align: center;' action='/setBalancas' method='get'> ");
+                        client.println("<h2>preencha todos os campos corretamente</h2><br/><br>");
+                        client.println("<input type='text' name='tara1' placeholder='tara 1'><br><br>");
+                        client.println("<input type='text' name='tara2' placeholder='tara 2'><br><br>");
+                        client.println("<input type='text' name='tara3' placeholder='tara 3'><br><br>");
+                        client.println(" <input type='submit' value='Salvar'>");
+                        client.println("</form>");
+                        break;
+                    }
+                    else if (req.rota == "config")
+                    {
+                        client.println("<html lang='pt-br'> <meta charset='UTF-8'><title>Configurações</title>");
+                        client.println("<a href='/'>Menu</a> <br/>");
+                        client.println("<form style='text-align: center;' action='/setConfig' method='get'> ");
+                        client.println("<h1>insira os dados e envie para configurar o Lisimetro</h1><br/>");
+                        client.println("<h2>preencha todos os campos corretamente</h2><br/><br>");
+                        client.println("<input type='text' name='host' placeholder='ip Servidor: 192.168.2.9'><br><br>");
+                        client.println("<input type='text' name='porta' placeholder='porta: 3000'><br><br>");
+                        client.println("<input type='text' name='tempo' placeholder='tempo em minutos de leitura'><br><br>");
                         client.println(" <input type='submit' value='Enviar'>");
                         client.println("</form>");
                         break;
@@ -259,15 +307,32 @@ void loop()
                     {
                         if (salvaConfig(req))
                         {
-                            client.println("0");
+                            client.println("Configurado!");
                         }
                         else
                         {
-                            client.println("-1");
+                            client.println("Erro, tente novamente!");
+                            delay(500);
+                            client.println("<script>setTimeout(()=>{window.location.href='config'}, 2000);</script>");
+                        }
+                    }
+                    else if (req.rota == "setBalancas") //################
+                    {
+                        if (salvaConfigBalancas(req))
+                        {
+                            client.println("Configurado!");
+                        }
+                        else
+                        {
+                            client.println("Erro, tente novamente!");
+                            delay(500);
+                            client.println("<script>setTimeout(()=>{window.location.href='configBalancas'}, 2000);</script>");
                         }
                     }
                     else if (req.rota == "file/list")
                     {
+                        client.println("<html lang='pt-br'><tiyle>Listar Arquivos</title> <meta charset='UTF-8'>");
+                        client.println("<a href='/'>Menu</a> <br/>");
                         if (!SD.begin())
                         {
                             client.println("Cartão não conectado ou falha");
@@ -311,8 +376,20 @@ void loop()
                             file = root.openNextFile();
                         }
                     }
-                    else if (req.url.indexOf("/file/"))
+                    else if (req.url == " HTTP")
                     {
+                        client.println("<html lang='pt-br'><meta charset='UTF-8'><title>Menu</title>");
+
+                        client.println("<h1>MENU</h1><br/><hr>");
+                        client.println("<a href='wifi'>Configurações de WiFi</a> <br/>");
+                        client.println("<a href='config'>Configurações de servidor e outros</a> <br/>");
+                        client.println("<a href='file/list'>Listar Arquivos Do cartão</a> <br/>");
+                        client.println("");
+                    }
+                    else
+                    {
+                        client.println("<html lang='pt-br'> <meta charset='UTF-8'>");
+                        client.println("<a href='/'>Menu</a> <br/>");
                         String arquivo = "/";
                         arquivo += req.url.substring(req.url.indexOf("/file/") + 6, req.url.indexOf("HTTP"));
                         Serial.println("\n");
@@ -326,21 +403,13 @@ void loop()
                         File file = SD.open(arquivo);
                         if (!file)
                         {
-                            client.print("Arquivo não encontrado");
+                            client.print("404");
                         }
                         while (file.available())
                         {
                             client.print(char(file.read()));
                         }
                     }
-                    else
-                    {
-
-                        client.println("<h1>404</h1>");
-                        break;
-                    }
-
-                    client.println(req.GetAtr("pasta")); //fim do http
                     break;
                 }
             }
@@ -399,11 +468,38 @@ bool configAuto()
                 req.url += char(file.read());
             }
             dadosConfig.httpPort = req.GetAtr("porta").toInt();
-            dadosConfig.host = tochar(req.GetAtr("servidor"));
+            dadosConfig.host = req.GetAtr("host");
+            dadosConfig.tempo = req.GetAtr("tempo").toInt();
         }
     }
     return false;
 }
+
+bool balancasAuto()
+{
+    if (SD.begin())
+    {
+        if (SD.exists("/lisimetro/config/gerais/configBalanca.txt"))
+        {
+            URL req(" ");
+
+            File file = SD.open("/lisimetro/config/gerais/configBalanca.txt");
+            if (!file)
+            {
+                Serial.print("Arquivo não encontrado");
+            }
+            while (file.available())
+            {
+                req.url += char(file.read());
+            }
+            tara1 = req.GetAtr("tara1").toDouble();
+            tara2 = req.GetAtr("tara2").toDouble();
+            tara3 = req.GetAtr("tara3").toDouble();
+        }
+    }
+    return false;
+}
+
 bool salvaWifi(URL req)
 {
 
@@ -450,6 +546,47 @@ IPAddress converte(URL teste, String atr)
     IPAddress a(teste.GetAtr(atr).substring(0, 3).toInt(), teste.GetAtr(atr).substring(3, 6).toInt(), teste.GetAtr(atr).substring(6, 9).toInt(), teste.GetAtr(atr).substring(9, 12).toInt());
     return (a);
 }
+//salvaConfigBalancas
+bool salvaConfigBalancas(URL req)
+{
+
+    if (!SD.begin())
+    {
+        Serial.println("Card Mount Failed");
+        return (false);
+    }
+
+    removeFile("lisimetro/config/gerais/configBalanca.txt");
+
+    if (SD.begin())
+    {
+
+        String conteudo = "GET /configBalancas";
+        conteudo += "?tara1=" + req.GetAtr("tara1");
+        conteudo += "?tara2=" + req.GetAtr("tara2");
+        conteudo += "?tara3=" + req.GetAtr("tara3"); //em minutos
+        conteudo += "HTTP";
+
+        if (!mkdirs("lisimetro/config/gerais"))
+            return (false);
+
+        if (!createFile("/lisimetro/config/gerais/configBalanca.txt", conteudo))
+        {
+            // Serial.println("certo");
+            return (true);
+        }
+        else
+        {
+            // Serial.println("falhou");
+            return (false);
+        }
+    }
+    else
+    {
+        return (false);
+    }
+}
+
 bool salvaConfig(URL req)
 {
 
@@ -464,9 +601,10 @@ bool salvaConfig(URL req)
     if (SD.begin())
     {
 
-        String conteudo = "GET /config?";
-        conteudo += "?servidor=" + req.GetAtr("servidor");
+        String conteudo = "GET /config";
+        conteudo += "?host=" + req.GetAtr("host");
         conteudo += "?porta=" + req.GetAtr("porta");
+        conteudo += "?tempo=" + req.GetAtr("tempo"); //em minutos
         conteudo += "HTTP";
 
         if (!mkdirs("lisimetro/config/gerais"))
@@ -488,6 +626,7 @@ bool salvaConfig(URL req)
         return (false);
     }
 }
+
 bool mkdirs(String pastas)
 {
 
@@ -578,6 +717,7 @@ void defineDataHora(DS3231 dispositivo, byte day, byte month, byte year, byte do
     dispositivo.setHour(hour);
     dispositivo.setMinute(minute);
     dispositivo.setSecond(second);
+    Serial.println(dispositivo.getDate());
 }
 double medir(HX711 Dispositivo)
 {
@@ -802,7 +942,7 @@ void testFileIO(fs::FS &fs, const char *path)
 }
 
 //##################################
-void Cliente(const int httpPort, const char *host, String url)
+String Cliente(const int httpPort, const char *host, String url)
 {
     Serial.print("connecting to");
     Serial.println(host);
@@ -810,7 +950,7 @@ void Cliente(const int httpPort, const char *host, String url)
     if (!client.connect(host, httpPort))
     {
         Serial.println("connection failed");
-        return;
+        return "-1";
     }
     Serial.print("Requesting URL: ");
     Serial.println(url);
@@ -822,14 +962,99 @@ void Cliente(const int httpPort, const char *host, String url)
         {
             Serial.println(">>> Client Timeout !");
             client.stop();
-            return;
+            return "-1";
         }
     }
+    String retorno = "";
     while (client.available())
     {
         String line = client.readStringUntil('\r');
-        Serial.print(line);
+        retorno += line;
     }
+    return retorno;
+}
+/*
+void ClienteUpdate(String url, String caminho)
+{
+    WiFiClient client;
+     Serial.print("connecting to");
+    Serial.println(dadosConfig.host);
+
+    if (!client.connect(dadosConfig.host, dadosConfig.httpPort))
+    {
+        Serial.println("connection failed");
+        return;
+    }
+    Serial.print("Requesting URL: ");
+    Serial.println(url);
+    client.print("GET " + url + " HTTP/1.1\r\nHost: " + dadosConfig.host + "\r\nConnection: close\r\n\r\n");
+    unsigned long timeout = millis();
+    while (client.available() == 0)
+    {
+        if (millis() - timeout > 5000)
+        {
+            Serial.println(">>> Client Timeout !");
+            client.stop();
+            return;
+        }
+    }
+
+    removeFile(tochar(caminho));
+    File file = SD.open(caminho, FILE_WRITE);
+    bool b = false;
+    String letra = "";
+    while (client.available())
+    {
+
+        if (!SD.begin())
+        {
+
+            return; //cartão não disponivel
+        }
+        letra = client.readStringUntil('\r');
+
+        if (letra.indexOf("!") >= 0 && b == false)
+        {
+            b = true;
+            file.print("<!");
+        }
+        if (b)
+        {
+            file.print(letra);
+        }
+
+        ///###########################################
+    }
+
     Serial.println();
     Serial.println("closing connection");
+}
+*/
+void VerificaUpdates()
+{
+    //defineDataHora(DS3231 dispositivo, byte day, byte month, byte year, byte dow, byte hour, byte minute, byte second)
+    String dados = Cliente(dadosConfig.httpPort, tochar(dadosConfig.host), "/dataHora");
+    dados.trim();
+    if (dados != "-1")
+    {
+        URL req(dados);
+        req.url = dados;
+        req.url.replace("&", "?");
+        /*
+    Serial.println(req.GetAtr("hora"));
+    Serial.println(req.GetAtr("minuto"));
+    Serial.println(req.GetAtr("segundo"));
+    Serial.println(req.GetAtr("dia"));
+    Serial.println(req.GetAtr("mes"));
+    Serial.println(req.GetAtr("ano"));
+*/
+        defineDataHora(relogio, req.GetAtr("dia").toInt(), req.GetAtr("mes").toInt(), req.GetAtr("ano").toInt(), req.GetAtr("dow").toInt(), req.GetAtr("hora").toInt(), req.GetAtr("minuto").toInt(), req.GetAtr("segundo").toInt());
+    }
+
+    if (!SD.begin())
+    {
+        return; //cartão não disponivel
+    }
+    //ClienteUpdate("/configHorario","/configHorario.html");
+    // Cliente(dadosConfig.httpPort,tochar(dadosConfig.host) , "/configHorario");
 }
