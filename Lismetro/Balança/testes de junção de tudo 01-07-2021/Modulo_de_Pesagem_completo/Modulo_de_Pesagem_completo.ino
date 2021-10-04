@@ -53,8 +53,8 @@ const char *ssid = "Lisimetro";     //ssdi do modo AP
 const char *password = "123456789"; //senha do modo AP
 WiFiServer server(80);              //porta do servidor
 
-double tara1=0, tara2=0, tara3=0;
-
+double tara1 = 0, tara2 = 0, tara3 = 0;
+double escala1 = 0, escala2 = 0, escala3 = 0;
 /*
 class medicao{
 /*
@@ -138,28 +138,42 @@ public:
 Configs dadosConfig;
 void setup()
 {
+    Serial.begin(115200);
+    Serial.println("###############################");
+    Serial.println("       Inicializando... ");
+    Serial.println("    Inicializando em modo AP ");
     Ap();
     pinMode(DT, INPUT);
     pinMode(DT1, INPUT);
     pinMode(DT2, INPUT);
     pinMode(SCK, OUTPUT);
-    Serial.begin(115200);
+
     Wire.begin();
+    Serial.println("    Conectando a rede... ");
     wifiAuto();
+    Serial.println("   Recuperando dados de configuração... ");
     configAuto();
+    Serial.println("   Recuperando dados das balanças... ");
     balancasAuto();
-    Serial.println("Dados da configuração: ");
-    Serial.println(dadosConfig.host);
-    Serial.println(dadosConfig.httpPort);
+    Serial.println("###############################");
+    Serial.println("           Taras               ");
+    Serial.println("Balança 1 = " + String(tara1));
+    Serial.println("Balança 2 = " + String(tara2));
+    Serial.println("Balança 3 = " + String(tara3));
+    Serial.println("###############################");
+    Serial.println("           Escalas               ");
+    Serial.println("Balança 1 = " + String(escala1));
+    Serial.println("Balança 2 = " + String(escala2));
+    Serial.println("Balança 3 = " + String(escala3));
+    Serial.println("###############################");
+    Serial.println("    Dados da configuração: ");
+    Serial.println("Host: " + dadosConfig.host);
+    Serial.println("Porta: " + dadosConfig.httpPort);
     VerificaUpdates();
-    int teste3 = 3000;
-    const char *teste = "192.168.2.7";
-    
-    Serial.println("Hora: ");
+    Serial.println("###############################");
+    Serial.println("           Data e Hora ");
     RTClib myRTC;
-
     DateTime now = myRTC.now();
-
     Serial.print(now.year(), DEC);
     Serial.print('/');
     Serial.print(now.month(), DEC);
@@ -172,11 +186,15 @@ void setup()
     Serial.print(':');
     Serial.print(now.second(), DEC);
     Serial.println();
-
+    inicializarBalanca(&balanca, tara1, DT, SCK);
+    //recuperaBalanca(&balanca, escala1);
     //Cliente(teste3, teste, "/configHorario");
     //mkdirs("x/b/c/d/ola");
     // inicializar(&balanca,tara,DT,SCK);
     //calibrar(&balanca,massa);
+
+    Serial.println("###############################");
+    Serial.println("       Setup Finalizado ");
 }
 void loop()
 {
@@ -253,9 +271,10 @@ void loop()
                     }
                     else if (req.rota == "configBalancas") //##############################
                     {
-                        client.println("<html lang='pt-br'> <meta charset='UTF-8'><title>Configurações das Células de Carga</title>");
+                        client.println("<html lang='pt-br'> <meta charset='UTF-8'><title>Configurações das taras</title>");
                         client.println("<a href='/'>Menu</a> <br/>");
                         client.println("<form style='text-align: center;' action='/setBalancas' method='get'> ");
+                        client.println("<h1>Configurações das taras em gramas, insira -1 para balanças desativadas</h1><br/><br>");
                         client.println("<h2>preencha todos os campos corretamente</h2><br/><br>");
                         client.println("<input type='text' name='tara1' placeholder='tara 1'><br><br>");
                         client.println("<input type='text' name='tara2' placeholder='tara 2'><br><br>");
@@ -318,7 +337,7 @@ void loop()
                     }
                     else if (req.rota == "setBalancas") //################
                     {
-                        if (salvaConfigBalancas(req))
+                        if (salvaConfigBalancas(req, true))
                         {
                             client.println("Configurado!");
                         }
@@ -328,6 +347,58 @@ void loop()
                             delay(500);
                             client.println("<script>setTimeout(()=>{window.location.href='configBalancas'}, 2000);</script>");
                         }
+                    }
+
+                    else if (req.rota == "calibrar") //################
+                    {
+                        client.println("<html lang='pt-br'> <meta charset='UTF-8'><title>Calibrar Balanças</title>");
+                        client.println("<a href='/'>Menu</a> <br/>");
+                        client.println("<form style='text-align: center;' action='/calibrarBalanca' method='get'> ");
+                        client.println("<h1>Calibrar Balanças</h1><br/>");
+                        client.println("<h2>preencha todos os campos corretamente</h2><br/><br>");
+                        client.println("<input type='number' name='balanca' placeholder='numero da balança de 1 a 3'><br>");
+                        client.println("<input type='number' name='massa' placeholder='massa de calibração em g'><br><br>");
+                        client.println(" <input type='submit' value='Enviar'>");
+                        client.println("</form>");
+                    }
+
+                    else if (req.rota == "calibrarBalanca") //################
+                    {
+                        //calibrar(HX711 *Dispositivo, double MassaPadrao, double *escala, WiFiClient client)
+                        switch (req.GetAtr("balanca").toInt())
+                        {
+                        case 1:
+                            calibrar(&balanca, req.GetAtr("massa").toDouble()/1000, &escala1, client);
+                            break;
+                        case 2:
+                            calibrar(&balanca1, req.GetAtr("massa").toDouble()/1000, &escala2, client);
+                            break;
+                        case 3:
+                            calibrar(&balanca2, req.GetAtr("massa").toDouble()/1000, &escala3, client);
+                            break;
+                        }
+                    }
+                    else if (req.rota == "medirBalanca") //################
+                    {
+                        client.println("<html lang='pt-br'><meta charset='UTF-8'><title>Medindo</title>");
+                        client.println("<a href='/'>Menu</a> <br/>");
+
+                        //calibrar(HX711 *Dispositivo, double MassaPadrao, double *escala, WiFiClient client)
+                          while (client.available()){
+                        switch (req.GetAtr("balanca").toInt())
+                        {
+                        case 1:
+                      
+                            client.println("Massa: " + String(medirRapido(balanca))+"<br>");
+                            break;
+                        case 2:
+                            client.println("Massa: " + String(medirRapido(balanca1))+"<br>");
+                            break;
+                        case 3:
+                            client.println("Massa: " + String(medirRapido(balanca2))+"<br>");
+                            break;
+                        }
+                          }
                     }
                     else if (req.rota == "file/list")
                     {
@@ -384,6 +455,12 @@ void loop()
                         client.println("<a href='wifi'>Configurações de WiFi</a> <br/>");
                         client.println("<a href='config'>Configurações de servidor e outros</a> <br/>");
                         client.println("<a href='file/list'>Listar Arquivos Do cartão</a> <br/>");
+                         client.println("<a href='configBalancas'>Configurar Taras</a> <br/>");
+                        client.println("<a href='calibrar'>Calibrar Balanças</a> <br/>");
+                        client.println("<a href='medirBalanca?balanca=1'>Medir Balança 01</a> <br/>");
+                        client.println("<a href='medirBalanca?balanca=2'>Medir Balança 02</a> <br/>");
+                        client.println("<a href='medirBalanca?balanca=3'>Medir Balança 03</a> <br/>");
+
                         client.println("");
                     }
                     else
@@ -495,6 +572,9 @@ bool balancasAuto()
             tara1 = req.GetAtr("tara1").toDouble();
             tara2 = req.GetAtr("tara2").toDouble();
             tara3 = req.GetAtr("tara3").toDouble();
+            escala1 = req.GetAtr("escala1").toDouble();
+            escala2 = req.GetAtr("escala2").toDouble();
+            escala3 = req.GetAtr("escala3").toDouble();
         }
     }
     return false;
@@ -547,7 +627,7 @@ IPAddress converte(URL teste, String atr)
     return (a);
 }
 //salvaConfigBalancas
-bool salvaConfigBalancas(URL req)
+bool salvaConfigBalancas(URL req, bool n)
 {
 
     if (!SD.begin())
@@ -560,11 +640,25 @@ bool salvaConfigBalancas(URL req)
 
     if (SD.begin())
     {
-
         String conteudo = "GET /configBalancas";
-        conteudo += "?tara1=" + req.GetAtr("tara1");
-        conteudo += "?tara2=" + req.GetAtr("tara2");
-        conteudo += "?tara3=" + req.GetAtr("tara3"); //em minutos
+        if (n)
+        { //veradeiro grava a partir da url
+            conteudo += "?tara1=" + req.GetAtr("tara1");
+            conteudo += "?tara2=" + req.GetAtr("tara2");
+            conteudo += "?tara3=" + req.GetAtr("tara3");
+            conteudo += "?escala1=" + String(escala1);
+            conteudo += "?escala2=" + String(escala2);
+            conteudo += "?escala3=" + String(escala3);
+        }
+        else
+        {
+            conteudo += "?tara1=" + String(tara1);
+            conteudo += "?tara2=" + String(tara2);
+            conteudo += "?tara3=" + String(tara3);
+            conteudo += "?escala1=" + String(escala1);
+            conteudo += "?escala2=" + String(escala2);
+            conteudo += "?escala3=" + String(escala3);
+        }
         conteudo += "HTTP";
 
         if (!mkdirs("lisimetro/config/gerais"))
@@ -727,24 +821,37 @@ double medirRapido(HX711 Dispositivo)
 {
     return (Dispositivo.get_units(1) * 1000);
 }
-void calibrar(HX711 *Dispositivo, double MassaPadrao)
+void calibrar(HX711 *Dispositivo, double MassaPadrao, double *escala, WiFiClient client)
 {
-    Serial.println("Calibrando!");
-    Serial.print("Coloque a massa conhecida! de: ");
-    Serial.print(MassaPadrao * 1000);
-    Serial.println(" g em até 3s sobre a balança");
+    client.println("<html lang='pt-br'><meta charset='UTF-8'><title>Calibração</title>");
+    client.println("<h1>Calibração</h1><br/><hr><br/>");
+    client.println("Calibrando!<br/>");
+    client.print("Coloque a massa conhecida! de: ");
+    client.print(MassaPadrao * 1000);
+    client.println(" g em até 3s sobre a balança <br/>");
     delay(3000);
-    Serial.println("iniciando Calibração !");
+    client.println("iniciando Calibração ! <br/>");
     double medida = 0;
     for (int i = 0; i < 10; i++)
     {
         medida += Dispositivo->get_value(10), 0;
-        Serial.println("Executando...");
+        client.println("Executando... <br/>");
         //Serial.println(Dispositivo.get_value(10),0);
     }
-    Serial.println("Finalizado");
+    client.println("Finalizado <br/>");
+    *escala = (((medida / 10) / MassaPadrao));
     Dispositivo->set_scale(((medida / 10) / MassaPadrao));
+
+    URL a("currentLine");
+    salvaConfigBalancas(a, false);
+    client.println("<a href='/'>Voltar ao Menu</a> <br/>");
 }
+
+void recuperaBalanca(HX711 *Dispositivo, double scale)
+{
+    Dispositivo->set_scale(scale);
+}
+
 void inicializarBalanca(HX711 *Dispositivo, float Tara, int Data, int Clock)
 {
     Serial.println("Inicializando! Agurdade...");
