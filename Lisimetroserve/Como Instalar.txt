@@ -1,0 +1,11 @@
+primeiro, copie essa pasta para dentro do disco C:
+essa pasta deve se chamar "Lisimetroserve" obrigatóriamente
+caso não tenha instalado o node js, baixe e instale...
+depois de instalado, execute os arquivos .bat dessa pasta, do 1 ao 6, abre, espera fechar a janela, e abre o outro, 1 a 1.
+por ultimo clique em executar e permita o firewall caso aparecça alguma mensagem.
+*mantenha a janela do executar aberta para permanecer online o servidor.
+*para acessa-lo digite localhost:3000/ na barra de navegação do navegador
+*para usar é necessário ter a porta 3000 livre
+*para saber qual ip do seu computador para colocar no arduino, abra o menu iniciar, pesquise CMD, aperte enter
+	na telinha preta, digite "ipconfig" aperte enter, procure por endereço ipv4, e anote o numero, eles estará assim:
+	192.168.002.003 por exemplo...
