@@ -1,7 +1,0 @@
-{
-  "development": {
-    "dialect": "sqlite",
-    "storage": "c:/lisimetroserve/servidor/node_modules/src/app/teste.sqlite3"
-		
-  }
-}
