@@ -79,6 +79,7 @@ bool salvaConfigBalancas(URL req, bool n)
         if (!createFile("/lisimetro/config/gerais/configBalanca.txt", conteudo))
         {
             // Serial.println("certo");
+                balancasAuto();
             return (true);
         }
         else

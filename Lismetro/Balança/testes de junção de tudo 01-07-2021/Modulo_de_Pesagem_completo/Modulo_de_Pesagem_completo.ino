@@ -176,7 +176,9 @@ void setup()
     Serial.print(':');
     Serial.print(now.second(), DEC);
     Serial.println();
-    inicializarBalanca(&balanca, escala1, tara1, DT, SCK);
+    if(tara1 != -1){inicializarBalanca(&balanca, escala1, tara1, DT, SCK);};
+    if(tara2 != -1){inicializarBalanca(&balanca1, escala2, tara2, DT1, SCK);};
+    if(tara3 != -1){inicializarBalanca(&balanca2, escala3, tara3, DT2, SCK);};
     //recuperaBalanca(&balanca, escala1, tara1);
     //Cliente(teste3, teste, "/configHorario");
     //mkdirs("x/b/c/d/ola");
@@ -624,8 +626,12 @@ bool lisimetro(double massa, int balan)
         Serial.println("/gravar?balanca=" + String(balan) + "&massa=" + String(massa) + "&tara=" + String(tara1) + "&escala=" + String(escala1) + "&nome=" + periodo1);
         break;
     case 2:
+        Serial.println("resposta:" + Cliente(dadosConfig.httpPort, tochar(dadosConfig.host), String("/gravar?balanca=" + String(balan) + "&massa=" + String(massa) + "&tara=" + String(tara2) + "&escala=" + String(escala2) + "&nome=" + periodo2)));
+        Serial.println("/gravar?balanca=" + String(balan) + "&massa=" + String(massa) + "&tara=" + String(tara2) + "&escala=" + String(escala2) + "&nome=" + periodo2);
         break;
     case 3:
+        Serial.println("resposta:" + Cliente(dadosConfig.httpPort, tochar(dadosConfig.host), String("/gravar?balanca=" + String(balan) + "&massa=" + String(massa) + "&tara=" + String(tara3) + "&escala=" + String(escala3) + "&nome=" + periodo3)));
+        Serial.println("/gravar?balanca=" + String(balan) + "&massa=" + String(massa) + "&tara=" + String(tara3) + "&escala=" + String(escala3) + "&nome=" + periodo3);
         break;
     }
     return true;
