@@ -1,0 +1,49 @@
+body,html{
+    margin:0px;
+    padding:0px;
+    border:0px;
+    height:100%
+   
+}
+.container-fluid{
+    margin:0px 0px 0px 0px;
+    padding:0px;
+    height: 13%;
+}
+@media only screen and (min-width: 600px) {
+.logo{
+    margin-top:3%;
+    width: 40%;
+    
+}
+}
+@media only screen and (max-width: 600px) {
+    .logo{
+        margin-top:3%;
+        height: 3%;
+        
+    }
+  }
+.cabecalho{
+    background-color: rgb(142, 142, 143);
+    margin:0px;
+    padding:0px;
+    border:0px;
+    height:100%
+}
+
+.busca{
+    margin-left: 2%;
+    height: 100%;
+    font-size: 150%;
+}
+.botao{
+    font-size: 150%;
+    margin-left:1%; 
+}
+
+.titulo{
+    background-color: rgb(182, 182, 182);
+    width:100%;
+    
+}

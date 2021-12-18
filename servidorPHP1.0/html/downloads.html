@@ -1,0 +1,53 @@
+
+<hr/>
+        <div class="row">
+            <form action="busca.php" method="get">
+            <div class="col-1">
+                <input id="cod1" style="visibility:hidden" type="text" readonly  name="busca" >
+            </div>
+            <div class="col-11">
+                <button type="submit" class="btn btn-success btn-lg botao"> Baixar Todos os Registros </button>
+            </div>
+            </form>
+        </div>
+        <hr/>
+
+   
+        <div class="row">
+            <form action="buscaData.php" method="get">
+                <input id="cod2" style="visibility:hidden" type="text" readonly  name="busca" >
+            <div class="col-2">
+               <h6 style="margin-left:5%"> De:  </h6>
+                <input  style="margin-left:5%" class="form-control data" id="cod1"  type="date"  name="data1" >
+                <br/>
+                <h6 style="margin-left:5%"> Até:  </h6>
+                <input style="margin-left:5%" class="form-control data" id="cod1"  type="date"  name="data2" >
+            </div>
+            <br/>
+            <div class="col-9">
+                <button type="submit" class="btn btn-success btn-lg botao"> Baixar Registros </button>
+            </div>
+            </form>
+        </div>
+        <hr/>
+        <div class="row">
+            <form action="geraGrafico.php" method="get">
+                <input id="cod3" style="visibility:hidden" type="text" readonly  name="busca" >
+            <div class="col-2">
+               <h6 style="margin-left:5%"> De:  </h6>
+                <input  style="margin-left:5%" class="form-control data" id="cod1"  type="date"  name="data1" >
+                <br/>
+                <h6 style="margin-left:5%"> Até:  </h6>
+                <input style="margin-left:5%" class="form-control data" id="cod1"  type="date"  name="data2" >
+            </div>
+            <br/>
+            <div class="col-9">
+                <button type="submit" class="btn btn-success btn-lg botao"> Vizualizar Gráficos </button>
+            </div>
+            </form>
+        </div>
+         </div>
+         <hr/>
+       
+            
+            
