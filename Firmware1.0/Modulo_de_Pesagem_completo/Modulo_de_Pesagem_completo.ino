@@ -393,14 +393,21 @@ void loop()
                         case 1:
                             if (balanca.is_ready())
                                 calibrar(&balanca, req.GetAtr("massa").toDouble() / 1000, &escala1, client);
+                                else
+                            client.print("Balançca Desconectada!");
                             break;
+                            
                         case 2:
                             if (balanca1.is_ready())
                                 calibrar(&balanca1, req.GetAtr("massa").toDouble() / 1000, &escala2, client);
+                            else
+                            client.print("Balançca Desconectada!");
                             break;
                         case 3:
                             if (balanca2.is_ready())
                                 calibrar(&balanca2, req.GetAtr("massa").toDouble() / 1000, &escala3, client);
+                                else
+                            client.print("Balançca Desconectada!"); 
                             break;
                         }
                     }
